@@ -8,6 +8,11 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+getrandom = { features = ["js"] }
+reqwest = "0.12.4"
+serde = { version = "1.0.199", features = ["derive"] }
+serde_json = "1.0.116"
+twapi-v2 = { version = "0.14.2", features = ["oauth10a", "upload"] }
 worker = "0.1.0"
 
 [profile.release]
