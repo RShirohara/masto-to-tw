@@ -1,25 +1,22 @@
 use std::{collections::HashMap, error::Error};
+
 use worker::Env;
 
-pub async fn retrieve_synced_statuses(
-  env: &Env,
-) -> Result<HashMap<String, String>, Box<dyn Error>> {
+pub async fn retrieve_sync_status(env: &Env) -> Result<HashMap<String, String>, Box<dyn Error>> {
   let kv = env.kv("MASTO_TO_TW")?;
-  let statuses: HashMap<String, String> = match kv.get("synced_statuses").json().await? {
-    Some(statuses) => statuses,
+  let status: HashMap<String, String> = match kv.get("sync_status").json().await? {
+    Some(status) => status,
     None => HashMap::new(),
   };
-  Ok(statuses)
+  Ok(status)
 }
 
-pub async fn save_synced_statuses(
+pub async fn save_sync_status(
   env: &Env,
-  statuses: &HashMap<String, String>,
+  status: &HashMap<String, String>,
 ) -> Result<(), Box<dyn Error>> {
   let kv = env.kv("MASTO_TO_TW")?;
-  let encoded_statuses = serde_json::to_string(&statuses)?;
-  kv.put("synced_statuses", encoded_statuses)?
-    .execute()
-    .await?;
+  let status_encoded = serde_json::to_string(&status)?;
+  kv.put("sync_status", status_encoded)?.execute().await?;
   Ok(())
 }
