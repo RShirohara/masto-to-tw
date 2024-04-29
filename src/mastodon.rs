@@ -30,7 +30,7 @@ async fn lookup_account(env: &MastodonEnv, acct: &str) -> Result<Account, Box<dy
   Ok(account)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Account {
   pub id: String,
 }
@@ -52,14 +52,17 @@ async fn retrieve_account_statuses(
   Ok(statuses)
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Status {
   pub id: String,
   pub text: String,
+  pub account: Account,
+  pub in_reply_to_id: Option<String>,
+  pub in_reply_to_account_id: Option<String>,
   pub media_attachments: Vec<MediaAttachment>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MediaAttachment {
   pub id: String,
   pub url: String,

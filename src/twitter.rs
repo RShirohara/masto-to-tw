@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use twapi_v2::{
-  api::post_2_tweets::{Api as PostApi, Body as PostBody},
+  api::post_2_tweets::{Api as PostApi, Body as PostBody, Reply},
   oauth10a::OAuthAuthentication,
 };
 use worker::Env;
@@ -15,9 +15,20 @@ pub fn create_authentication(env: &Env) -> Result<OAuthAuthentication, Box<dyn E
   ))
 }
 
-pub async fn post_tweet(auth: &OAuthAuthentication, text: &str) -> Result<String, Box<dyn Error>> {
+pub async fn post_tweet(
+  auth: &OAuthAuthentication,
+  text: &str,
+  reply_to: &Option<String>,
+) -> Result<String, Box<dyn Error>> {
   let body = PostBody {
     text: Some(text.to_string()),
+    reply: match reply_to {
+      Some(id) => Some(Reply {
+        in_reply_to_tweet_id: id.to_string(),
+        ..Default::default()
+      }),
+      None => None,
+    },
     ..Default::default()
   };
   let (response, _) = PostApi::new(body).execute(auth).await?;

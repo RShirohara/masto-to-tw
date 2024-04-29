@@ -30,7 +30,12 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
   let sync_target: Vec<Status> = statuses
     .clone()
     .into_iter()
+    .rev()
     .filter(|status| !sync_status.contains_key(&status.id))
+    .filter(|status| {
+      status.in_reply_to_account_id.is_none()
+        || status.in_reply_to_account_id.clone().unwrap() == status.account.id
+    })
     .collect();
   if sync_target.is_empty() {
     return Ok(sync_status);
@@ -38,7 +43,15 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
 
   let twitter_auth = twitter::create_authentication(&env)?;
   for status in sync_target.iter() {
-    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text).await {
+    let reply_to = match &status.in_reply_to_id {
+      Some(id) => match sync_status.contains_key(id.as_str()) {
+        true => Some(sync_status.get(id.as_str()).unwrap().to_string()),
+        false => None,
+      },
+      None => None,
+    };
+
+    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text, &reply_to).await {
       Ok(id) => id,
       Err(error) => return Err(error),
     };
