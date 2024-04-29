@@ -1,44 +1,44 @@
 mod mastodon;
 mod twitter;
 
-use worker::*;
+use worker::{event, Context, Env, Request, Response, Result as WorkerResult, Router};
 
 #[event(fetch)]
-async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
+async fn main(req: Request, env: Env, _ctx: Context) -> WorkerResult<Response> {
   let router = Router::new();
 
   router
     .get_async("/mastodon", |_req, ctx| async move {
       let env = match mastodon::ClientEnv::from_ctx(&ctx) {
-        std::result::Result::Ok(env) => env,
-        std::result::Result::Err(error) => return Response::error(error.to_string(), 500),
+        Ok(env) => env,
+        Err(error) => {
+          return Response::error(format!("Failed to retrieve environments: {error:#?}"), 500)
+        }
       };
+
       let account = match mastodon::lookup_account(
         &env,
         ctx.secret("MASTODON_ACCOUNT_ACCT")?.to_string().as_str(),
       )
       .await
       {
-        std::result::Result::Ok(account) => account,
-        std::result::Result::Err(error) => return Response::error(error.to_string(), 501),
-      };
-      let statuses = match mastodon::retrieve_status(&env, &account.id).await {
-        std::result::Result::Ok(statuses) => statuses,
-        std::result::Result::Err(error) => return Response::error(error.to_string(), 502),
+        Ok(account) => account,
+        Err(error) => return Response::error(format!("Failed to lookup account: {error:#?}"), 500),
       };
 
-      match serde_json::to_string(&statuses) {
-        std::result::Result::Ok(json) => Response::ok(json),
-        std::result::Result::Err(error) => Response::error(error.to_string(), 503),
-      }
+      let statuses = match mastodon::retrieve_status(&env, &account.id).await {
+        Ok(statuses) => statuses,
+        Err(error) => return Response::error(format!("Failed to retrieve statuses: {error:#?}"), 500),
+      };
+
+      Response::from_json(&statuses)
     })
     .get_async("/twitter/post", |_req, ctx| async move {
       let auth = twitter::create_auth(&ctx)?;
-      let result = twitter::post_tweet(&auth, "This is test tweet from api.").await;
 
-      match result {
-        std::result::Result::Ok(id) => Response::ok(id),
-        std::result::Result::Err(error) => Response::error(error.to_string(), 503),
+      match twitter::post_tweet(&auth, "This is test tweet from api.").await {
+        Ok(id) => Response::ok(id),
+        Err(error) => Response::error(format!("Failed to post tweet: {error:#?}"), 500),
       }
     })
     .run(req, env)
