@@ -28,13 +28,23 @@ async fn main(req: Request, env: Env, _ctx: Context) -> WorkerResult<Response> {
 
       let statuses = match mastodon::retrieve_status(&env, &account.id).await {
         Ok(statuses) => statuses,
-        Err(error) => return Response::error(format!("Failed to retrieve statuses: {error:#?}"), 500),
+        Err(error) => {
+          return Response::error(format!("Failed to retrieve statuses: {error:#?}"), 500)
+        }
       };
 
       Response::from_json(&statuses)
     })
     .get_async("/twitter/post", |_req, ctx| async move {
-      let auth = twitter::create_auth(&ctx)?;
+      let auth = match twitter::create_auth(&ctx) {
+        Ok(auth) => auth,
+        Err(error) => {
+          return Response::error(
+            format!("Falied to retrieve authentications: {error:#?}"),
+            500,
+          )
+        }
+      };
 
       match twitter::post_tweet(&auth, "This is test tweet from api.").await {
         Ok(id) => Response::ok(id),
