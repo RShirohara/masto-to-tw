@@ -1,7 +1,7 @@
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use worker::RouteContext;
+use worker::Env;
 
 pub struct ClientEnv {
   domain: String,
@@ -10,10 +10,10 @@ pub struct ClientEnv {
 }
 
 impl ClientEnv {
-  pub fn from_ctx(context: &RouteContext<()>) -> Result<Self, Box<dyn Error>> {
+  pub fn from_ctx(env: &Env) -> Result<Self, Box<dyn Error>> {
     Result::Ok(ClientEnv {
-      domain: context.secret("MASTODON_INSTANCE_URL")?.to_string(),
-      access_token: context.secret("MASTODON_ACCESS_TOKEN")?.to_string(),
+      domain: env.secret("MASTODON_INSTANCE_URL")?.to_string(),
+      access_token: env.secret("MASTODON_ACCESS_TOKEN")?.to_string(),
       user_agent: "MastoToTw".to_string(),
     })
   }
@@ -52,14 +52,14 @@ pub struct Account {
   pub id: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Status {
   pub id: String,
   pub text: String,
   pub media_attachments: Vec<MediaAttachment>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MediaAttachment {
   pub id: String,
   pub url: String,
