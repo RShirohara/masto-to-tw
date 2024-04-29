@@ -20,17 +20,12 @@ impl ClientEnv {
 }
 
 pub async fn lookup_account(env: &ClientEnv, acct: &str) -> Result<Account, Box<dyn Error>> {
-  let url = format!("{}/api/v1/accounts/lookup", env.domain);
-  let query = format!("?acct={acct}");
-
   let client = Client::new();
   let response = client
-    .get(format!("{url}{query}"))
-    .header(
-      header::AUTHORIZATION,
-      format!("Bearer {}", env.access_token),
-    )
-    .header(header::USER_AGENT, env.user_agent.clone())
+    .get(format!("{}/api/v1/accounts/lookup", env.domain).as_str())
+    .query(&[("acct", acct)])
+    .header(header::USER_AGENT, env.user_agent.as_str())
+    .bearer_auth(env.access_token.as_str())
     .send()
     .await?;
 
@@ -39,17 +34,12 @@ pub async fn lookup_account(env: &ClientEnv, acct: &str) -> Result<Account, Box<
 }
 
 pub async fn retrieve_status(env: &ClientEnv, id: &str) -> Result<Vec<Status>, Box<dyn Error>> {
-  let url = format!("{}/api/v1/accounts/{id}/statuses", env.domain);
-  let query = "?exclude_reblogs=true&only_public=true";
-
   let client = Client::new();
   let response = client
-    .get(format!("{url}{query}"))
-    .header(
-      header::AUTHORIZATION,
-      format!("Bearer {}", env.access_token),
-    )
-    .header(header::USER_AGENT, env.user_agent.clone())
+    .get(format!("{}/api/v1/accounts/{id}/statuses", env.domain).as_str())
+    .query(&[("exclude_reblogs", true), ("only_public", true)])
+    .header(header::USER_AGENT, env.user_agent.as_str())
+    .bearer_auth(env.access_token.as_str())
     .send()
     .await?;
 
