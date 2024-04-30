@@ -52,10 +52,7 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
           let id = match twitter::upload_image(
             &twitter_auth,
             attachment.url.as_str(),
-            match attachment.description.is_empty() {
-              true => None,
-              false => Some(attachment.description.as_str()),
-            },
+            attachment.description.as_deref(),
           )
           .await
           {

@@ -72,7 +72,7 @@ pub struct Status {
 pub struct MediaAttachment {
   pub id: String,
   pub url: String,
-  pub description: String,
+  pub description: Option<String>,
 }
 
 // Environment
