@@ -16,60 +16,64 @@ pub async fn fetch(_req: Request, env: Env, _ctx: Context) -> WorkerResult<Respo
 }
 
 async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Error>> {
+  // Retrieve mastodon statuses
   let statuses = mastodon::retrieve_statuses(&env).await?;
 
-  let mut sync_status = kv::retrieve_sync_status(env).await?;
+  // Retrieve status for sync
+  let mut sync_status = kv::retrieve_sync_status(&env).await?;
   if sync_status.is_empty() {
     for status in statuses.iter() {
-      sync_status.insert(status.id.clone(), "".to_string());
+      sync_status.insert(status.id.to_owned(), "".to_string());
     }
     kv::save_sync_status(&env, &sync_status).await?;
     return Ok(sync_status);
   }
 
+  // Extract sync target
   let sync_target: Vec<Status> = statuses
-    .clone()
+    .to_owned()
     .into_iter()
     .rev()
     .filter(|status| !sync_status.contains_key(&status.id))
     .filter(|status| {
       status.in_reply_to_account_id.is_none()
-        || status.in_reply_to_account_id.clone().unwrap() == status.account.id
+        || status.in_reply_to_account_id.to_owned().unwrap() == status.account.id
     })
     .collect();
-  if sync_target.is_empty() {
-    return Ok(sync_status);
-  }
 
+  // Post tweet
   let twitter_auth = twitter::create_authentication(&env)?;
   for status in sync_target.iter() {
-    let media_ids = if !status.media_attachments.is_empty() {
-      let mut ids: Vec<String> = Vec::new();
-      for attachment in status.media_attachments.clone() {
-        let id = match twitter::upload_image(
-          &twitter_auth,
-          attachment.url.as_str(),
-          &if !attachment.description.is_empty() {
-            Some(attachment.description)
-          } else {
-            None
-          },
-        )
-        .await {
-          Ok(id) => id,
-          Err(_) => continue
-        };
-        ids.push(id)
+    // Upload media
+    let media_ids = match status.media_attachments.is_empty() {
+      true => None,
+      false => {
+        let mut ids: Vec<String> = Vec::new();
+        for attachment in status.media_attachments.to_owned() {
+          let id = match twitter::upload_image(
+            &twitter_auth,
+            attachment.url.as_str(),
+            match attachment.description.is_empty() {
+              true => None,
+              false => Some(attachment.description.as_str()),
+            },
+          )
+          .await
+          {
+            Ok(id) => id,
+            Err(_) => continue,
+          };
+          ids.push(id)
+        }
+        match ids.is_empty() {
+          true => None,
+          false => Some(ids),
+        }
       }
-      match !ids.is_empty() {
-          true => Some(ids),
-          false => None
-      }
-    } else {
-      None
     };
 
-    let reply_to = match &status.in_reply_to_id {
+    // Retrieve tweet_id for reply
+    let reply_to = match status.in_reply_to_id.to_owned() {
       Some(id) => match sync_status.contains_key(id.as_str()) {
         true => Some(sync_status.get(id.as_str()).unwrap().as_str()),
         false => None,
@@ -77,14 +81,13 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
       None => None,
     };
 
-    let tweet_id =
-      match twitter::post_tweet(&twitter_auth, &status.text, &reply_to, &media_ids).await {
-        Ok(id) => id,
-        Err(error) => return Err(error),
-      };
-    sync_status.insert(status.id.clone(), tweet_id);
+    // Post
+    let tweet_id = twitter::post_tweet(&twitter_auth, &status.text, reply_to, media_ids).await?;
+
+    sync_status.insert(status.id.to_owned(), tweet_id);
   }
 
+  // Save status for sync
   kv::save_sync_status(&env, &sync_status).await?;
 
   Ok(sync_status)

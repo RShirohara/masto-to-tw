@@ -1,8 +1,10 @@
 use std::error::Error;
 
 use reqwest::{header, Client};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use worker::Env;
+
+const USER_AGENT: &str = "MastoToTw";
 
 pub async fn retrieve_statuses(env: &Env) -> Result<Vec<Status>, Box<dyn Error>> {
   let mastodon_env = MastodonEnv::from_worker_env(&env)?;
@@ -22,15 +24,17 @@ async fn lookup_account(env: &MastodonEnv, acct: &str) -> Result<Account, Box<dy
   let response = client
     .get(format!("{}/api/v1/accounts/lookup", env.domain).as_str())
     .query(&[("acct", acct)])
-    .header(header::USER_AGENT, env.user_agent.as_str())
+    .header(header::USER_AGENT, USER_AGENT)
     .bearer_auth(env.access_token.as_str())
     .send()
     .await?;
+
   let account: Account = serde_json::from_str(response.text().await?.as_str())?;
+
   Ok(account)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Deserialize)]
 pub struct Account {
   pub id: String,
 }
@@ -44,15 +48,17 @@ async fn retrieve_account_statuses(
   let response = client
     .get(format!("{}/api/v1/accounts/{}/statuses", env.domain, account.id).as_str())
     .query(&[("exclude_reblogs", true), ("only_public", true)])
-    .header(header::USER_AGENT, env.user_agent.as_str())
+    .header(header::USER_AGENT, USER_AGENT)
     .bearer_auth(env.access_token.as_str())
     .send()
     .await?;
+
   let statuses: Vec<Status> = serde_json::from_str(response.text().await?.as_str())?;
+
   Ok(statuses)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Deserialize)]
 pub struct Status {
   pub id: String,
   pub text: String,
@@ -62,7 +68,7 @@ pub struct Status {
   pub media_attachments: Vec<MediaAttachment>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Deserialize)]
 pub struct MediaAttachment {
   pub id: String,
   pub url: String,
@@ -73,7 +79,6 @@ pub struct MediaAttachment {
 struct MastodonEnv {
   domain: String,
   access_token: String,
-  user_agent: String,
 }
 
 impl MastodonEnv {
@@ -81,7 +86,6 @@ impl MastodonEnv {
     Ok(MastodonEnv {
       domain: env.secret("MASTODON_INSTANCE_URL")?.to_string(),
       access_token: env.secret("MASTODON_ACCESS_TOKEN")?.to_string(),
-      user_agent: "MastoToTw".to_string(),
     })
   }
 }
