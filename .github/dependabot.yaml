@@ -1,0 +1,46 @@
+version: 2
+
+updates:
+  # Cargo crates
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "Type: Dependencies"
+    assignees:
+      - "RShirohara"
+    reviewers:
+      - "RShirohara"
+    open-pull-requests-limit: 10
+
+  # Terraform functions
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "monthly"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "Type: Dependencies"
+    assignees:
+      - "RShirohara"
+    reviewers:
+      - "RShirohara"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "Type: CI"
+      - "Type: Dependencies"
+    assignees:
+      - "RShirohara"
+    reviewers:
+      - "RShirohara"
