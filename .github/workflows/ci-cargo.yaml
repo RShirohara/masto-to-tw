@@ -16,9 +16,6 @@ on:
     branches:
       - main
 
-env:
-  RUST_TOOLCHAIN_TARGET: wasm32-unknown-unknown
-
 jobs:
   build:
     name: Build
@@ -28,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4.1.4
 
-      - name: Setup Rust
+      - name: Setup rust
         uses: ./.github/actions/setup-rust
 
       - name: Setup pnpm and install dependencies
@@ -38,8 +35,8 @@ jobs:
         run: |
           pnpm run build
 
-  check:
-    name: Check
+  lint:
+    name: Lint
     needs: build
     runs-on: ubuntu-latest
 
@@ -51,8 +48,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4.1.4
 
-      - name: Setup Rust
+      - name: Setup rust
         uses: ./.github/actions/setup-rust
+
+      - name: Setup pnpm and install dependencies
+        uses: ./.github/actions/setup-pnpm
 
       - name: Setup reviewdog
         uses: reviewdog/action-setup@v1.3.0
@@ -64,13 +64,31 @@ jobs:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEWDOG_REPORTER: github-check
         run: |
-          cargo clippy \
+          pnpm --silent run lint \
             -q \
             --no-deps \
-            --target=${{ env.RUST_TOOLCHAIN_TARGET }} \
-            --release \
-            --message-format=short 2>&1 \
+            --message-format=short \
+            2>&1 \
           | reviewdog \
               -f="${REVIEWDOG_FORMAT}" \
-              --name="Check result (${REVIEWDOG_FORMAT})" \
+              --name="Lint result (${REVIEWDOG_FORMAT})" \
               --reporter="${REVIEWDOG_REPORTER}" \
+
+  format:
+    name: Format
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.4
+
+      - name: Setup rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup pnpm and install dependencies
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Check format
+        run: |
+          pnpm run fmt --check
