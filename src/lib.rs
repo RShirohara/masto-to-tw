@@ -5,14 +5,13 @@ mod twitter;
 use std::{collections::HashMap, error::Error};
 
 use mastodon::Status;
-use worker::{event, Context, Env, Request, Response, Result as WorkerResult};
+use worker::{
+  event, Env, ScheduleContext, ScheduledEvent,
+};
 
-#[event(fetch)]
-pub async fn fetch(_req: Request, env: Env, _ctx: Context) -> WorkerResult<Response> {
-  match sync_statuses(&env).await {
-    Ok(sync_status) => Response::from_json(&sync_status),
-    Err(error) => Response::error(format!("Failed to sync status: {error:#?}"), 500),
-  }
+#[event(scheduled)]
+pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) -> () {
+  let _ = sync_statuses(&env).await;
 }
 
 async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Error>> {
@@ -82,9 +81,10 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
     };
 
     // Post
-    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text, reply_to, media_ids).await {
+    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text, reply_to, media_ids).await
+    {
       Ok(id) => id,
-      Err(_) => "".to_string()
+      Err(_) => "".to_string(),
     };
 
     sync_status.insert(status.id.to_owned(), tweet_id);
