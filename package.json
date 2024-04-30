@@ -2,6 +2,7 @@
   "name": "masto-to-tw",
   "description": "Sync Mastodon posts to Twitter.",
   "private": "true",
+  "packageManager": "pnpm@9.0.6",
   "scripts": {
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
