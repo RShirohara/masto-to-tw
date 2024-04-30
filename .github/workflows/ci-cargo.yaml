@@ -34,12 +34,15 @@ jobs:
           toolchain: stable
           target: ${{ env.RUST_TOOLCHAIN_TARGET }}
 
-      - name: Setup dependencies cache
+      - name: Setup rust dependencies cache
         uses: Swatinem/rust-cache@v2.7.3
         with:
           prefix-key: rust-cache
-          shared-key: cargo-cache-${{ hashFiles('./Cargo.lock') }}
+          shared-key: ${{ hashFiles('./Cargo.lock') }}
           key: ""
+
+      - name: Setup pnpm and install dependencies
+        uses: ./.github/actions/setup-pnpm
 
       - name: Build
         run: |
@@ -64,11 +67,11 @@ jobs:
           toolchain: stable
           target: ${{ env.RUST_TOOLCHAIN_TARGET }}
 
-      - name: Cache dependencies
+      - name: Cache rust dependencies
         uses: Swatinem/rust-cache@v2.7.3
         with:
           prefix-key: rust-cache
-          shared-key: cargo-cache-${{ hashFiles('./Cargo.lock') }}
+          shared-key: ${{ hashFiles('./Cargo.lock') }}
           key: ""
 
       - name: Setup reviewdog
