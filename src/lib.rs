@@ -43,6 +43,32 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
 
   let twitter_auth = twitter::create_authentication(&env)?;
   for status in sync_target.iter() {
+    let media_ids = if !status.media_attachments.is_empty() {
+      let mut ids: Vec<String> = Vec::new();
+      for attachment in status.media_attachments.clone() {
+        let id = match twitter::upload_image(
+          &twitter_auth,
+          attachment.url.as_str(),
+          &if !attachment.description.is_empty() {
+            Some(attachment.description)
+          } else {
+            None
+          },
+        )
+        .await {
+          Ok(id) => id,
+          Err(_) => continue
+        };
+        ids.push(id)
+      }
+      match !ids.is_empty() {
+          true => Some(ids),
+          false => None
+      }
+    } else {
+      None
+    };
+
     let reply_to = match &status.in_reply_to_id {
       Some(id) => match sync_status.contains_key(id.as_str()) {
         true => Some(sync_status.get(id.as_str()).unwrap().as_str()),
@@ -51,10 +77,11 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
       None => None,
     };
 
-    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text, &reply_to).await {
-      Ok(id) => id,
-      Err(error) => return Err(error),
-    };
+    let tweet_id =
+      match twitter::post_tweet(&twitter_auth, &status.text, &reply_to, &media_ids).await {
+        Ok(id) => id,
+        Err(error) => return Err(error),
+      };
     sync_status.insert(status.id.clone(), tweet_id);
   }
 
