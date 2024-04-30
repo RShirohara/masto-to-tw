@@ -1,6 +1,7 @@
 [package]
 name = "masto-to-tw"
 description = "Sync Mastodon posts to Twitter."
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 
