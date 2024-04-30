@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4.1.2
 
       - name: Setup Rust
-        uses: ./github/actions/setup-rust
+        uses: ./.github/actions/setup-rust
 
       - name: Setup pnpm and install dependencies
         uses: ./.github/actions/setup-pnpm
@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@v4.1.2
 
       - name: Setup Rust
-        uses: ./github/actions/setup-rust
+        uses: ./.github/actions/setup-rust
 
       - name: Setup reviewdog
         uses: reviewdog/action-setup@v1.3.0
