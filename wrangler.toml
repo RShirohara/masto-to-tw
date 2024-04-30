@@ -15,13 +15,3 @@ id = "testId"
 
 [triggers]
 crons = ["*/5 * * * *"]
-
-[env.dev]
-build = { command = """
-export PATH="${PATH}:$(realpath ./node_modules/.bin):${CARGO_HOME:-~/.cargo}/bin"
-cargo install -q worker-build && worker-build --dev
-""" }
-
-[[env.dev.kv_namespaces]]
-binding = "MASTO_TO_TW"
-id = "testId"

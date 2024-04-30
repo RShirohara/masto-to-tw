@@ -142,6 +142,7 @@ target/
 
 # Wrangler Local Files
 .wrangler
+.dev.vars
 
 # Local .terraform directories
 **/.terraform/*

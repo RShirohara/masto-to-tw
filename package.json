@@ -6,7 +6,9 @@
   "scripts": {
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev --env dev --test-scheduled"
+    "dev": "wrangler dev --test-scheduled",
+    "fmt": "cargo fmt",
+    "lint": "cargo clippy --release"
   },
   "devDependencies": {
     "esbuild": "^0.20.2",

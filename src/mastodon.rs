@@ -7,7 +7,7 @@ use worker::Env;
 const USER_AGENT: &str = "MastoToTw";
 
 pub async fn retrieve_statuses(env: &Env) -> Result<Vec<Status>, Box<dyn Error>> {
-  let mastodon_env = MastodonEnv::from_worker_env(&env)?;
+  let mastodon_env = MastodonEnv::from_worker_env(env)?;
   let account = lookup_account(
     &mastodon_env,
     env.secret("MASTODON_ACCOUNT_ACCT")?.to_string().as_str(),

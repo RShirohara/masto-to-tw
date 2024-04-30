@@ -41,20 +41,14 @@ pub async fn post_tweet(
 ) -> Result<String, Box<dyn Error>> {
   let body = PostBody {
     text: Some(text.to_string()),
-    reply: match reply_to {
-      Some(id) => Some(Reply {
-        in_reply_to_tweet_id: id.to_string(),
-        ..Default::default()
-      }),
-      None => None,
-    },
-    media: match media_ids {
-      Some(ids) => Some(Media {
-        media_ids: ids.to_owned(),
-        ..Default::default()
-      }),
-      None => None,
-    },
+    reply: reply_to.map(|id| Reply {
+      in_reply_to_tweet_id: id.to_string(),
+      ..Default::default()
+    }),
+    media: media_ids.map(|ids| Media {
+      media_ids: ids.to_owned(),
+      ..Default::default()
+    }),
     ..Default::default()
   };
   let (response, _) = PostApi::new(body).execute(auth).await?;
