@@ -16,6 +16,9 @@ on:
     branches:
       - main
 
+env:
+  RUST_TOOLCHAIN_TARGET: wasm32-unknown-unknown
+
 jobs:
   build:
     name: Build
@@ -67,6 +70,7 @@ jobs:
           pnpm --silent run lint \
             -q \
             --no-deps \
+            --target=${{ env.RUST_TOOLCHAIN_TARGET }} \
             --message-format=short \
             2>&1 \
           | reviewdog \
