@@ -1,0 +1,93 @@
+name: CI (Cargo crate)
+
+on:
+  pull_request:
+    types:
+      - ready_for_review
+      - review_requested
+    paths:
+      - ".github/workflows/ci-cargo.yaml"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches:
+      - main
+
+env:
+  RUST_TOOLCHAIN_TARGET: wasm32-unknown-unknown
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ env.RUST_TOOLCHAIN_TARGET }}
+
+      - name: Setup dependencies cache
+        uses: Swatinem/rust-cache@v2.7.3
+        with:
+          prefix-key: rust-cache
+          shared-key: cargo-cache-${{ hashFiles('./Cargo.lock') }}
+          key: ""
+
+      - name: Build
+        run: |
+          pnpm run build
+
+  check:
+    name: Check
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      checks: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ env.RUST_TOOLCHAIN_TARGET }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2.7.3
+        with:
+          prefix-key: rust-cache
+          shared-key: cargo-cache-${{ hashFiles('./Cargo.lock') }}
+          key: ""
+
+      - name: Setup reviewdog
+        uses: reviewdog/action-setup@v1.3.0
+
+      - name: Run clippy
+        env:
+          CARGO_TERM_COLOR: never
+          REVIEWDOG_FORMAT: clippy
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWDOG_REPORTER: github-check
+        run: |
+          cargo clippy \
+            -q \
+            --no-deps \
+            --target=${{ env.RUST_TOOLCHAIN_TARGET }} \
+            --release \
+            --message-format=short 2>&1 \
+          | reviewdog \
+              -f="${REVIEWDOG_FORMAT}" \
+              --name="Check result (${REVIEWDOG_FORMAT})" \
+              --reporter="${REVIEWDOG_REPORTER}" \

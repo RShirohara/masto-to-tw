@@ -3,6 +3,7 @@
   "description": "Sync Mastodon posts to Twitter.",
   "private": "true",
   "scripts": {
+    "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev --env dev --test-scheduled"
   },
