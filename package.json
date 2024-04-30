@@ -6,7 +6,7 @@
   "scripts": {
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev --env dev --test-scheduled"
+    "dev": "wrangler dev --test-scheduled"
   },
   "devDependencies": {
     "esbuild": "^0.20.2",
