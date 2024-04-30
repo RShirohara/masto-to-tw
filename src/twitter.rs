@@ -42,13 +42,13 @@ pub async fn post_tweet(
   let body = PostBody {
     text: Some(text.to_string()),
     reply: reply_to.map(|id| Reply {
-        in_reply_to_tweet_id: id.to_string(),
-        ..Default::default()
-      }),
+      in_reply_to_tweet_id: id.to_string(),
+      ..Default::default()
+    }),
     media: media_ids.map(|ids| Media {
-        media_ids: ids.to_owned(),
-        ..Default::default()
-      }),
+      media_ids: ids.to_owned(),
+      ..Default::default()
+    }),
     ..Default::default()
   };
   let (response, _) = PostApi::new(body).execute(auth).await?;
