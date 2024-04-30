@@ -49,7 +49,7 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
       true => None,
       false => {
         let mut ids: Vec<String> = Vec::new();
-        for attachment in status.media_attachments.to_owned() {
+        for attachment in &status.media_attachments {
           let id = match twitter::upload_image(
             &twitter_auth,
             attachment.url.as_str(),
@@ -73,7 +73,7 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
     };
 
     // Retrieve tweet_id for reply
-    let reply_to = match status.in_reply_to_id.to_owned() {
+    let reply_to = match &status.in_reply_to_id {
       Some(id) => match sync_status.contains_key(id.as_str()) {
         true => Some(sync_status.get(id.as_str()).unwrap().as_str()),
         false => None,
@@ -82,7 +82,10 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
     };
 
     // Post
-    let tweet_id = twitter::post_tweet(&twitter_auth, &status.text, reply_to, media_ids).await?;
+    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text, reply_to, media_ids).await {
+      Ok(id) => id,
+      Err(_) => "".to_string()
+    };
 
     sync_status.insert(status.id.to_owned(), tweet_id);
   }
