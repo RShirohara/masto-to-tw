@@ -45,7 +45,7 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
   for status in sync_target.iter() {
     let reply_to = match &status.in_reply_to_id {
       Some(id) => match sync_status.contains_key(id.as_str()) {
-        true => Some(sync_status.get(id.as_str()).unwrap().to_string()),
+        true => Some(sync_status.get(id.as_str()).unwrap().as_str()),
         false => None,
       },
       None => None,

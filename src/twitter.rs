@@ -18,7 +18,7 @@ pub fn create_authentication(env: &Env) -> Result<OAuthAuthentication, Box<dyn E
 pub async fn post_tweet(
   auth: &OAuthAuthentication,
   text: &str,
-  reply_to: &Option<String>,
+  reply_to: &Option<&str>,
 ) -> Result<String, Box<dyn Error>> {
   let body = PostBody {
     text: Some(text.to_string()),
