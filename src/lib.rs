@@ -5,33 +5,31 @@ mod twitter;
 use std::{collections::HashMap, error::Error};
 
 use mastodon::Status;
-use worker::{
-  event, Env, ScheduleContext, ScheduledEvent,
-};
+use worker::{event, Env, ScheduleContext, ScheduledEvent};
 
 #[event(scheduled)]
-pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) -> () {
+pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
   let _ = sync_statuses(&env).await;
 }
 
 async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Error>> {
   // Retrieve mastodon statuses
-  let statuses = mastodon::retrieve_statuses(&env).await?;
+  let statuses = mastodon::retrieve_statuses(env).await?;
 
   // Retrieve status for sync
-  let mut sync_status = kv::retrieve_sync_status(&env).await?;
+  let mut sync_status = kv::retrieve_sync_status(env).await?;
   if sync_status.is_empty() {
     for status in statuses.iter() {
       sync_status.insert(status.id.to_owned(), "".to_string());
     }
-    kv::save_sync_status(&env, &sync_status).await?;
+    kv::save_sync_status(env, &sync_status).await?;
     return Ok(sync_status);
   }
 
   // Extract sync target
   let sync_target: Vec<Status> = statuses
-    .to_owned()
-    .into_iter()
+    .iter()
+    .cloned()
     .rev()
     .filter(|status| !sync_status.contains_key(&status.id))
     .filter(|status| {
@@ -41,7 +39,7 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
     .collect();
 
   // Post tweet
-  let twitter_auth = twitter::create_authentication(&env)?;
+  let twitter_auth = twitter::create_authentication(env)?;
   for status in sync_target.iter() {
     // Upload media
     let media_ids = match status.media_attachments.is_empty() {
@@ -88,7 +86,7 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
   }
 
   // Save status for sync
-  kv::save_sync_status(&env, &sync_status).await?;
+  kv::save_sync_status(env, &sync_status).await?;
 
   Ok(sync_status)
 }
