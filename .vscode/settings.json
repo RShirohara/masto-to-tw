@@ -1,0 +1,15 @@
+{
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.extraArgs": [
+    "--release"
+  ],
+  "rust-analyzer.cargo.buildScripts.overrideCommand": [
+    "cargo",
+    "check",
+    "--release",
+    "--quiet",
+    "--workspace",
+    "--message-format=json",
+    "--all-targets"
+  ]
+}
