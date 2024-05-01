@@ -18,7 +18,9 @@ updates:
 
   # Terraform functions
   - package-ecosystem: "terraform"
-    directory: "/terraform"
+    directories:
+      - "/terraform/kv"
+      - "/terraform/secrets"
     schedule:
       interval: "monthly"
       time: "03:00"
