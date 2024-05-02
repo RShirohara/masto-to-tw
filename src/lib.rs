@@ -75,9 +75,29 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
       None => None,
     };
 
+    // Build text
+    let heading_info: Vec<String> = [match status.spoiler_text.is_empty() {
+      true => "".to_string(),
+      false => format!("CW: {}", status.spoiler_text),
+    }]
+    .iter()
+    .filter(|text| !text.is_empty())
+    .map(|text| text.to_owned())
+    .collect();
+    let text = [
+      heading_info.join(match heading_info.is_empty() {
+        true => "",
+        false => "\n",
+      }),
+      status.text.to_owned(),
+    ]
+    .join(match heading_info.is_empty() {
+      true => "",
+      false => "\n\n",
+    });
+
     // Post
-    let tweet_id = match twitter::post_tweet(&twitter_auth, &status.text, reply_to, media_ids).await
-    {
+    let tweet_id = match twitter::post_tweet(&twitter_auth, &text, reply_to, media_ids).await {
       Ok(id) => id,
       Err(_) => "".to_string(),
     };
