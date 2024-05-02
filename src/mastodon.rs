@@ -66,7 +66,7 @@ pub struct Status {
   pub in_reply_to_id: Option<String>,
   pub in_reply_to_account_id: Option<String>,
   pub media_attachments: Vec<MediaAttachment>,
-  pub spoiler_text: String
+  pub spoiler_text: String,
 }
 
 #[derive(Clone, Deserialize)]
