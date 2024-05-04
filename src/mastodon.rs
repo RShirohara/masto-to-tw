@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use reqwest::{header, Client};
+use reqwest::{header, Client, Response};
 use serde::Deserialize;
 use worker::Env;
 
@@ -8,11 +8,15 @@ const USER_AGENT: &str = "MastoToTw";
 
 pub async fn retrieve_statuses(env: &Env) -> Result<Vec<Status>, Box<dyn Error>> {
   let mastodon_env = MastodonEnv::from_worker_env(env)?;
-  let account = lookup_account(
+
+  // Retrieve account
+  let account: Account = lookup_account(
     &mastodon_env,
     env.secret("MASTODON_ACCOUNT_ACCT")?.to_string().as_str(),
   )
   .await?;
+
+  // Retrieve statuses
   let statuses = retrieve_account_statuses(&mastodon_env, &account).await?;
 
   Ok(statuses)
@@ -60,26 +64,60 @@ async fn retrieve_account_statuses(
 
 #[derive(Clone, Deserialize)]
 pub struct Status {
-  pub id: String,
-  pub text: String,
   pub account: Account,
-  pub in_reply_to_id: Option<String>,
+  pub id: String,
   pub in_reply_to_account_id: Option<String>,
+  pub in_reply_to_id: Option<String>,
   pub media_attachments: Vec<MediaAttachment>,
   pub spoiler_text: String,
+  pub text: String,
 }
 
 #[derive(Clone, Deserialize)]
 pub struct MediaAttachment {
+  pub description: Option<String>,
   pub id: String,
   pub url: String,
+}
+
+// Media
+pub async fn retrieve_media_attachment(url: &str) -> Result<Media, Box<dyn Error>> {
+  let client = Client::new();
+  let response = client
+    .get(url)
+    .header(header::USER_AGENT, USER_AGENT)
+    .send()
+    .await?;
+
+  Ok(Media {
+    content_size: response
+      .headers()
+      .get(header::CONTENT_LENGTH)
+      .unwrap()
+      .to_str()?
+      .parse::<u64>()?,
+    content_type: response
+      .headers()
+      .get(header::CONTENT_TYPE)
+      .unwrap()
+      .to_str()?
+      .to_string(),
+    description: None,
+    response,
+  })
+}
+
+pub struct Media {
+  pub content_type: String,
+  pub content_size: u64,
   pub description: Option<String>,
+  pub response: Response,
 }
 
 // Environment
 struct MastodonEnv {
-  domain: String,
   access_token: String,
+  domain: String,
 }
 
 impl MastodonEnv {
