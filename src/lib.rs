@@ -17,7 +17,7 @@ async fn sync_statuses(
   ctx: &ScheduleContext,
 ) -> Result<HashMap<String, String>, Box<dyn Error>> {
   // Retrieve mastodon statuses
-  let statuses = mastodon::retrieve_statuses(env).await?;
+  let statuses = mastodon::retrieve_statuses(env, ctx).await?;
 
   // Retrieve sync status
   let mut sync_status: HashMap<String, String> = cache::retrieve_sync_status(env).await?;

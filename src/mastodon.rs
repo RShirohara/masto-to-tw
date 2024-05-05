@@ -1,20 +1,32 @@
 use std::error::Error;
 
 use reqwest::{header, Client, Response};
-use serde::Deserialize;
-use worker::Env;
+use serde::{Deserialize, Serialize};
+use worker::{Env, ScheduleContext};
 
 const USER_AGENT: &str = "MastoToTw";
 
-pub async fn retrieve_statuses(env: &Env) -> Result<Vec<Status>, Box<dyn Error>> {
+pub async fn retrieve_statuses(
+  env: &Env,
+  ctx: &ScheduleContext,
+) -> Result<Vec<Status>, Box<dyn Error>> {
   let mastodon_env = MastodonEnv::from_worker_env(env)?;
 
   // Retrieve account
-  let account = lookup_account(
-    &mastodon_env,
-    env.secret("MASTODON_ACCOUNT_ACCT")?.to_string().as_str(),
-  )
-  .await?;
+  let account_cache = crate::cache::retrieve_account(env).await?;
+  let account = match account_cache.to_owned() {
+    Some(account) => account,
+    None => {
+      lookup_account(
+        &mastodon_env,
+        env.secret("MASTODON_ACCOUNT_ACCT")?.to_string().as_str(),
+      )
+      .await?
+    }
+  };
+  if account_cache.is_none() {
+    let _ = crate::cache::save_account(env, ctx, &account);
+  }
 
   // Retrieve statuses
   let statuses = retrieve_account_statuses(&mastodon_env, &account).await?;
@@ -41,7 +53,7 @@ async fn lookup_account(env: &MastodonEnv, acct: &str) -> Result<Account, Box<dy
   Ok(account)
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Account {
   pub id: String,
 }
