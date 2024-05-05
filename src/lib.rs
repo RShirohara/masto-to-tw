@@ -42,6 +42,11 @@ async fn sync_statuses(
     })
     .collect();
 
+  // If sync target is empty, finish process
+  if sync_target.is_empty() {
+    return Ok(sync_status);
+  }
+
   // Post tweet
   let twitter_auth = twitter::create_authentication(env)?;
   for status in sync_target {
