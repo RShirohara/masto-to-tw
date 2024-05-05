@@ -1,28 +1,30 @@
 use std::{
+  collections::HashMap,
   error::Error,
   io::{Cursor, Error as IoError, ErrorKind as IoErrorKind},
 };
 
 use futures::stream::TryStreamExt;
-use reqwest::{header, Client};
 use tokio::io::AsyncReadExt;
 use tokio_util::io::StreamReader;
 use twapi_v2::{
   api::{
-    post_2_tweets::{Api as PostApi, Body as PostBody, Media, Reply},
+    post_2_tweets::{Api as TweetApi, Body as TweetBody, Media as TweetMedia, Reply as TweetReply},
     Authentication,
   },
   oauth10a::OAuthAuthentication,
   upload::{
-    post_media_metadata_create::{AltText, Api as MediaMetadataApi, Body as MediaMetadataBody},
-    post_media_upload_append::{Api as MediaUploadApi, Data as MediaUploadData},
+    post_media_metadata_create::{
+      AltText as MediaMetadataAltText, Api as MediaMetadataApi, Body as MediaMetadataBody,
+    },
+    post_media_upload_append::{Api as MediaAppendApi, Data as MediaAppendData},
     post_media_upload_finalize::{Api as MediaFinalizeApi, Data as MediaFinalizeData},
     post_media_upload_init::{Api as MediaInitApi, Data as MediaInitData},
   },
 };
 use worker::Env;
 
-const USER_AGENT: &str = "MastoToTo";
+use crate::mastodon::{Media as MastodonMedia, Status as MastodonStatus};
 
 pub fn create_authentication(env: &Env) -> Result<impl Authentication, Box<dyn Error>> {
   Ok(OAuthAuthentication::new(
@@ -33,25 +35,83 @@ pub fn create_authentication(env: &Env) -> Result<impl Authentication, Box<dyn E
   ))
 }
 
-pub async fn post_tweet(
+pub async fn post_tweet_from_status(
+  auth: &impl Authentication,
+  status: &MastodonStatus,
+  sync_status: &HashMap<String, String>,
+) -> Result<String, Box<dyn Error>> {
+  // Upload media
+  let media_ids = match status.media_attachments.is_empty() {
+    true => None,
+    false => {
+      let mut ids: Vec<String> = Vec::new();
+      for attachment in &status.media_attachments {
+        let media = crate::mastodon::retrieve_media_attachment(&attachment.url).await?;
+        let id = match upload_media(auth, media, attachment.description.as_deref()).await {
+          Ok(id) => id,
+          Err(_) => continue,
+        };
+        ids.push(id);
+      }
+      match ids.is_empty() {
+        true => None,
+        false => Some(ids),
+      }
+    }
+  };
+
+  // Retrieve tweet_id for reply
+  let reply_to = status
+    .in_reply_to_id
+    .as_ref()
+    .map(|id| sync_status.get(id.as_str()).unwrap().as_str());
+
+  // Build text
+  let heading_info: Vec<String> = [match status.spoiler_text.is_empty() {
+    true => "".to_string(),
+    false => format!("CW: {}", status.spoiler_text),
+  }]
+  .iter()
+  .filter(|text| !text.is_empty())
+  .cloned()
+  .collect();
+  let text = [
+    heading_info.join(match heading_info.is_empty() {
+      true => "",
+      false => "\n",
+    }),
+    status.text.to_owned(),
+  ]
+  .join(match heading_info.is_empty() {
+    true => "",
+    false => "\n\n",
+  });
+
+  // Post
+  let tweet_id = post_tweet(auth, &text, reply_to, media_ids).await?;
+
+  Ok(tweet_id)
+}
+
+async fn post_tweet(
   auth: &impl Authentication,
   text: &str,
   reply_to: Option<&str>,
   media_ids: Option<Vec<String>>,
 ) -> Result<String, Box<dyn Error>> {
-  let body = PostBody {
+  let body = TweetBody {
     text: Some(text.to_string()),
-    reply: reply_to.map(|id| Reply {
+    reply: reply_to.map(|id| TweetReply {
       in_reply_to_tweet_id: id.to_string(),
       ..Default::default()
     }),
-    media: media_ids.map(|ids| Media {
-      media_ids: ids.to_owned(),
+    media: media_ids.map(|ids| TweetMedia {
+      media_ids: ids.to_vec(),
       ..Default::default()
     }),
     ..Default::default()
   };
-  let (response, _) = PostApi::new(body).execute(auth).await?;
+  let (response, _) = TweetApi::new(body).execute(auth).await?;
   let id = match response.data {
     Some(data) => data.id.unwrap(),
     None => "".to_string(),
@@ -60,35 +120,15 @@ pub async fn post_tweet(
   Ok(id)
 }
 
-pub async fn upload_image(
+async fn upload_media(
   auth: &impl Authentication,
-  url: &str,
-  alt_text: Option<&str>,
+  media: MastodonMedia,
+  description: Option<&str>,
 ) -> Result<String, Box<dyn Error>> {
-  // Download image
-  let client = Client::new();
-  let source_response = client
-    .get(url)
-    .header(header::USER_AGENT, USER_AGENT)
-    .send()
-    .await?;
-  let content_type = source_response
-    .headers()
-    .get("Content-Type")
-    .unwrap()
-    .to_str()?
-    .to_string();
-  let content_size = source_response
-    .headers()
-    .get("Content-Length")
-    .unwrap()
-    .to_str()?
-    .parse::<u64>()?;
-
   // Init
   let data = MediaInitData {
-    total_bytes: content_size,
-    media_type: content_type,
+    total_bytes: media.content_size,
+    media_type: media.content_type,
     ..Default::default()
   };
   let (response, _) = MediaInitApi::new(data).execute(auth).await?;
@@ -96,25 +136,25 @@ pub async fn upload_image(
 
   // Append
   const MEDIA_SPLIT_SIZE: u64 = 1000000;
-  let stream = source_response.bytes_stream();
+  let stream = media.response.bytes_stream();
   let mut reader = StreamReader::new(stream.map_err(|e| IoError::new(IoErrorKind::Other, e)));
   let mut segment_index = 0;
 
-  while segment_index * MEDIA_SPLIT_SIZE < content_size {
-    let read_size: usize = if (segment_index + 1) * MEDIA_SPLIT_SIZE < content_size {
+  while segment_index * MEDIA_SPLIT_SIZE < media.content_size {
+    let read_size: usize = if (segment_index + 1) * MEDIA_SPLIT_SIZE < media.content_size {
       MEDIA_SPLIT_SIZE.try_into().unwrap()
     } else {
-      (content_size - segment_index * MEDIA_SPLIT_SIZE) as usize
+      (media.content_size - segment_index * MEDIA_SPLIT_SIZE) as usize
     };
     let mut cursor = Cursor::new(vec![0; read_size]);
 
     reader.read_exact(cursor.get_mut()).await?;
-    let data = MediaUploadData {
+    let data = MediaAppendData {
       media_id: media_id.to_owned(),
       segment_index,
       cursor,
     };
-    let _ = MediaUploadApi::new(data).execute(auth).await?;
+    let _ = MediaAppendApi::new(data).execute(auth).await?;
 
     segment_index += 1;
   }
@@ -126,10 +166,10 @@ pub async fn upload_image(
   let _ = MediaFinalizeApi::new(data).execute(auth).await?;
 
   // Add description
-  if let Some(text) = alt_text {
+  if let Some(text) = description {
     let body = MediaMetadataBody {
       media_id: media_id.to_owned(),
-      alt_text: AltText {
+      alt_text: MediaMetadataAltText {
         text: text.to_string(),
       },
     };

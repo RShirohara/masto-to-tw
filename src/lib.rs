@@ -1,4 +1,4 @@
-mod kv;
+mod cache;
 mod mastodon;
 mod twitter;
 
@@ -8,28 +8,32 @@ use mastodon::Status;
 use worker::{event, Env, ScheduleContext, ScheduledEvent};
 
 #[event(scheduled)]
-pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
-  let _ = sync_statuses(&env).await;
+pub async fn scheduled(_event: ScheduledEvent, env: Env, ctx: ScheduleContext) {
+  let _ = sync_statuses(&env, &ctx).await;
 }
 
-async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Error>> {
+async fn sync_statuses(
+  env: &Env,
+  ctx: &ScheduleContext,
+) -> Result<HashMap<String, String>, Box<dyn Error>> {
   // Retrieve mastodon statuses
-  let statuses = mastodon::retrieve_statuses(env).await?;
+  let statuses = mastodon::retrieve_statuses(env, ctx).await?;
 
-  // Retrieve status for sync
-  let mut sync_status = kv::retrieve_sync_status(env).await?;
+  // Retrieve sync status
+  let mut sync_status: HashMap<String, String> = cache::retrieve_sync_status(env).await?;
+
+  // If sync status is empty, initialize and finish process
   if sync_status.is_empty() {
-    for status in statuses.iter() {
+    for status in statuses {
       sync_status.insert(status.id.to_owned(), "".to_string());
     }
-    kv::save_sync_status(env, &sync_status).await?;
+    let _ = cache::save_sync_status(env, ctx, &sync_status);
     return Ok(sync_status);
   }
 
   // Extract sync target
-  let sync_target: Vec<Status> = statuses
+  let sync_target: Vec<&Status> = statuses
     .iter()
-    .cloned()
     .rev()
     .filter(|status| !sync_status.contains_key(&status.id))
     .filter(|status| {
@@ -38,75 +42,22 @@ async fn sync_statuses(env: &Env) -> Result<HashMap<String, String>, Box<dyn Err
     })
     .collect();
 
+  // If sync target is empty, finish process
+  if sync_target.is_empty() {
+    return Ok(sync_status);
+  }
+
   // Post tweet
   let twitter_auth = twitter::create_authentication(env)?;
-  for status in sync_target.iter() {
-    // Upload media
-    let media_ids = match status.media_attachments.is_empty() {
-      true => None,
-      false => {
-        let mut ids: Vec<String> = Vec::new();
-        for attachment in &status.media_attachments {
-          let id = match twitter::upload_image(
-            &twitter_auth,
-            attachment.url.as_str(),
-            attachment.description.as_deref(),
-          )
-          .await
-          {
-            Ok(id) => id,
-            Err(_) => continue,
-          };
-          ids.push(id)
-        }
-        match ids.is_empty() {
-          true => None,
-          false => Some(ids),
-        }
-      }
-    };
-
-    // Retrieve tweet_id for reply
-    let reply_to = match &status.in_reply_to_id {
-      Some(id) => match sync_status.contains_key(id.as_str()) {
-        true => Some(sync_status.get(id.as_str()).unwrap().as_str()),
-        false => None,
-      },
-      None => None,
-    };
-
-    // Build text
-    let heading_info: Vec<String> = [match status.spoiler_text.is_empty() {
-      true => "".to_string(),
-      false => format!("CW: {}", status.spoiler_text),
-    }]
-    .iter()
-    .filter(|text| !text.is_empty())
-    .map(|text| text.to_owned())
-    .collect();
-    let text = [
-      heading_info.join(match heading_info.is_empty() {
-        true => "",
-        false => "\n",
-      }),
-      status.text.to_owned(),
-    ]
-    .join(match heading_info.is_empty() {
-      true => "",
-      false => "\n\n",
-    });
-
-    // Post
-    let tweet_id = match twitter::post_tweet(&twitter_auth, &text, reply_to, media_ids).await {
-      Ok(id) => id,
-      Err(_) => "".to_string(),
-    };
-
+  for status in sync_target {
+    let tweet_id = twitter::post_tweet_from_status(&twitter_auth, status, &sync_status)
+      .await
+      .unwrap_or_else(|_| "".to_string());
     sync_status.insert(status.id.to_owned(), tweet_id);
   }
 
-  // Save status for sync
-  kv::save_sync_status(env, &sync_status).await?;
+  // Save sync status
+  let _ = cache::save_sync_status(env, ctx, &sync_status);
 
   Ok(sync_status)
 }
