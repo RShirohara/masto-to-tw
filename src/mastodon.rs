@@ -90,6 +90,7 @@ pub struct Status {
   pub media_attachments: Vec<MediaAttachment>,
   pub spoiler_text: String,
   pub text: String,
+  pub url: String
 }
 
 #[derive(Clone, Deserialize)]

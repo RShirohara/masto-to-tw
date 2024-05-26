@@ -66,26 +66,15 @@ pub async fn post_tweet_from_status(
     .as_ref()
     .map(|id| sync_status.get(id.as_str()).unwrap().as_str());
 
-  // Build text
-  let heading_info: Vec<String> = [match status.spoiler_text.is_empty() {
-    true => "".to_string(),
-    false => format!("CW: {}", status.spoiler_text),
-  }]
-  .iter()
-  .filter(|text| !text.is_empty())
-  .cloned()
-  .collect();
-  let text = [
-    heading_info.join(match heading_info.is_empty() {
-      true => "",
-      false => "\n",
-    }),
-    status.text.to_owned(),
-  ]
-  .join(match heading_info.is_empty() {
-    true => "",
-    false => "\n\n",
-  });
+  // Build
+  let text = match status.spoiler_text.is_empty() {
+    true => status.text.to_owned(),
+    false => format!(
+      "CW: {spoiler_text}\n\n{url}",
+      spoiler_text = status.spoiler_text,
+      url = status.url
+    ),
+  };
 
   // Post
   let tweet_id = post_tweet(auth, &text, reply_to, media_ids).await?;
