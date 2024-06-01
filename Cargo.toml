@@ -14,7 +14,7 @@ getrandom = { features = ["js"] }
 reqwest = { version = "0.12.4", features = ["stream"] }
 serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.116"
-tokio = { version = "1.37.0", default-features = false, features = ["io-util"] }
+tokio = { version = "1.38.0", default-features = false, features = ["io-util"] }
 tokio-util = { version = "0.7.11", default-features = false, features = ["io"] }
 twapi-v2 = { version = "0.15.0", features = ["oauth10a", "upload"] }
 worker = "0.3.0"
