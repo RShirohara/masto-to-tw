@@ -1238,9 +1238,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "twapi-v2"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df912a8a393eb99ef5aeb45eda669898a5d050acd18aaa365f3fb8f1d6d554c9"
+checksum = "6d3ba8af657f1ae24a62f07a094b952c748caeb3d564517e3a7492f66c982334"
 dependencies = [
  "base64",
  "chrono",
