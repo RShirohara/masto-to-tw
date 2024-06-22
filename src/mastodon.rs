@@ -96,7 +96,6 @@ pub struct Status {
 #[derive(Clone, Deserialize)]
 pub struct MediaAttachment {
   pub description: Option<String>,
-  pub id: String,
   pub url: String,
 }
 
