@@ -16,6 +16,22 @@ updates:
       - "RShirohara"
     open-pull-requests-limit: 10
 
+    # node.js modules
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "Type: Dependencies"
+    assignees:
+      - "RShirohara"
+    reviewers:
+      - "RShirohara"
+    versioning-strategy: increase
+    open-pull-requests-limit: 10
+
   # Terraform functions
   - package-ecosystem: "terraform"
     directories:
