@@ -17,7 +17,7 @@ serde_json = "1.0.127"
 tokio = { version = "1.40.0", default-features = false, features = ["io-util"] }
 tokio-util = { version = "0.7.11", default-features = false, features = ["io"] }
 twapi-v2 = { version = "0.14.2", features = ["oauth10a", "upload"] }
-worker = "0.3.4"
+worker = "0.4.1"
 
 [profile.release]
 opt-level = "s"
