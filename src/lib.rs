@@ -1,9 +1,9 @@
 mod api;
 mod cache;
 
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 
-use api::mastodon::{Api as MastodonApi, Status};
+use api::mastodon::Api as MastodonApi;
 use worker::{
   event, Context, Env, Request, Response, Result as WorkerResult, ScheduleContext, ScheduledEvent,
 };
@@ -11,7 +11,7 @@ use worker::{
 #[event(fetch)]
 pub async fn fetch(_req: Request, env: Env, ctx: Context) -> WorkerResult<Response> {
   match sync_posts(&env, &ctx).await {
-    Ok(statuses) => Response::ok(serde_json::to_string(&statuses)?),
+    Ok(statuses) => Response::from_json(&statuses),
     Err(error) => Response::error(error.to_string(), 500),
   }
 }
@@ -19,7 +19,7 @@ pub async fn fetch(_req: Request, env: Env, ctx: Context) -> WorkerResult<Respon
 #[event(scheduled)]
 pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {}
 
-async fn sync_posts(env: &Env, ctx: &Context) -> Result<Vec<Status>, Box<dyn Error>> {
+async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>, Box<dyn Error>> {
   let mastodon_api = MastodonApi::new(env)?;
 
   // Get target mastodon account.
@@ -41,5 +41,16 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<Vec<Status>, Box<dyn Err
   // Get mastodon statuses.
   let mastodon_statuses = mastodon_api.get_account_status(&mastodon_account).await?;
 
-  Ok(mastodon_statuses)
+  // Get sync status.
+  let mut sync_status: HashMap<String, String> = cache::get_sync_status(env).await?;
+
+  // If sync status is empty, initialize status and finish process.
+  if sync_status.is_empty() {
+    sync_status = cache::init_sync_status_from_statuses(&mastodon_statuses);
+    let _ = cache::save_sync_status(env, ctx, &sync_status);
+
+    return Ok(sync_status);
+  }
+
+  Ok(sync_status)
 }
