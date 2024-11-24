@@ -6,15 +6,26 @@ use std::{collections::HashMap, error::Error};
 use api::mastodon::{Api as MastodonApi, Status as MastodonStatus};
 use api::twitter::Api as TwitterApi;
 use worker::{
-  event, Context, Env, Request, Response, Result as WorkerResult, ScheduleContext, ScheduledEvent,
+  console_error, console_log, event, Context, Env, Request, Response, Result as WorkerResult,
+  ScheduleContext, ScheduledEvent,
 };
 
 #[event(fetch)]
 pub async fn fetch(_req: Request, env: Env, ctx: Context) -> WorkerResult<Response> {
-  match sync_posts(&env, &ctx).await {
+  console_log!("Processing start.");
+
+  let result = match sync_posts(&env, &ctx).await {
     Ok(statuses) => Response::from_json(&statuses),
-    Err(error) => Response::error(error.to_string(), 500),
-  }
+    Err(error) => {
+      console_error!("Error occurred: {error}", error = error.to_string());
+
+      Response::error(error.to_string(), 500)
+    }
+  };
+
+  console_log!("Processing finished.");
+
+  result
 }
 
 #[event(scheduled)]
@@ -34,6 +45,12 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
     Err(_) => mastodon_api.lookup_account(&mastodon_account_acct).await?,
   };
 
+  console_log!(
+    "Target mastodon account: {acct} ({id})",
+    acct = &mastodon_account_acct,
+    id = &mastodon_account.id
+  );
+
   // If account cache is empty, save mastodon account to kv.
   if mastodon_account_cache.is_ok() && mastodon_account_cache.unwrap().is_none() {
     let _ = cache::save_target_account(env, ctx, &mastodon_account);
@@ -47,6 +64,8 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
 
   // If sync status is empty, initialize status and finish process.
   if sync_status.is_empty() {
+    console_log!("Initialize sync status.");
+
     sync_status = cache::init_sync_status_from_statuses(&mastodon_statuses);
     let _ = cache::save_sync_status(env, ctx, &sync_status);
 
@@ -68,6 +87,14 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
     })
     .collect();
 
+  console_log!(
+    "Target mastodon status: {statuses:?}",
+    statuses = &sync_target
+      .iter()
+      .map(|&status| status.id.to_string())
+      .collect::<Vec<String>>()
+  );
+
   // If sync target is empty, finish process.
   if sync_target.is_empty() {
     return Ok(sync_status);
@@ -87,8 +114,23 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
             .upload_media(media, &attachment.description)
             .await
           {
-            Ok(id) => id,
-            Err(_) => continue,
+            Ok(id) => {
+              console_log!(
+                "Media upload completed: {url} -> {media_id}",
+                url = &attachment.url,
+                media_id = &id
+              );
+
+              id
+            },
+            Err(_) => {
+              console_error!(
+                "Media upload failed: {url}",
+                url = &attachment.url
+              );
+
+              continue;
+            },
           };
           media_ids.push(media_id);
         }
@@ -104,7 +146,26 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
     let body = twitter_api.build_body(status, &sync_status, media_ids.as_ref())?;
 
     // Post.
-    let tweet_id = twitter_api.post_tweet(body).await.unwrap_or("".to_string());
+    let tweet_id = match twitter_api.post_tweet(body).await {
+      Ok(tweet_id) => {
+        console_log!(
+          "Sync completed: {status_id} -> {tweet_id}",
+          status_id = &status.id,
+          tweet_id = &tweet_id
+        );
+
+        tweet_id
+      },
+      Err(error) => {
+        console_error!(
+          "Sync failed: {status_id} ({error:#})",
+          status_id = &status.id,
+          error = error
+        );
+
+        "".to_string()
+      }
+    };
 
     sync_status.insert(status.id.to_owned(), tweet_id);
   }
