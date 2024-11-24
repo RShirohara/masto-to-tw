@@ -1,54 +1,18 @@
-use std::{collections::HashMap, error::Error};
+use worker::kv::KvStore;
 
-use worker::{kv::KvStore, Env, ScheduleContext};
+mod sync_status;
+mod target_account;
 
-use crate::mastodon::Account;
+pub use sync_status::{get_sync_status, init_sync_status_from_statuses, save_sync_status};
+pub use target_account::{get_target_account, save_target_account};
 
 const KV_BINDING_NAME: &str = "cache";
 
-pub async fn retrieve_sync_status(env: &Env) -> Result<HashMap<String, String>, Box<dyn Error>> {
-  let kv = env.kv(KV_BINDING_NAME)?;
-  let status: HashMap<String, String> = kv
-    .get("sync_status")
-    .json()
-    .await?
-    .unwrap_or_else(HashMap::new);
-  Ok(status)
-}
-
-pub fn save_sync_status(
-  env: &Env,
-  ctx: &ScheduleContext,
-  status: &HashMap<String, String>,
-) -> Result<(), Box<dyn Error>> {
-  let kv = env.kv(KV_BINDING_NAME)?;
-  let status_encoded = serde_json::to_string(&status)?;
-  ctx.wait_until(save_cache(kv, "sync_status", status_encoded));
-  Ok(())
-}
-
-pub async fn retrieve_account(env: &Env) -> Result<Option<Account>, Box<dyn Error>> {
-  let kv = env.kv(KV_BINDING_NAME)?;
-  let account: Option<Account> = kv.get("account").json().await?;
-  Ok(account)
-}
-
-pub fn save_account(
-  env: &Env,
-  ctx: &ScheduleContext,
-  account: &Account,
-) -> Result<(), Box<dyn Error>> {
-  let kv = env.kv(KV_BINDING_NAME)?;
-  let account_encoded = serde_json::to_string(&account)?;
-  ctx.wait_until(save_cache(kv, "account", account_encoded));
-  Ok(())
-}
-
-async fn save_cache(store: KvStore, name: &str, value: String) {
+async fn save_to_kv(store: KvStore, name: &str, value: String, expiration_ttl: u64) {
   let _ = store
     .put(name, value)
     .unwrap()
-    .expiration_ttl(86400)
+    .expiration_ttl(expiration_ttl)
     .execute()
     .await;
 }

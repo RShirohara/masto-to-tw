@@ -11,7 +11,7 @@ cargo install -q worker-build && worker-build --release
 [[kv_namespaces]]
 binding = "cache"
 # Set created kv namespace id
-id = "testId"
+id = "cache"
 
 [triggers]
 crons = ["*/5 * * * *"]
