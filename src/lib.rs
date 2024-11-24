@@ -95,38 +95,53 @@ async fn sync_posts(
   let twitter_api = TwitterApi::new(env)?;
   for status in sync_target {
     // Upload media.
-    let media_ids = match status.media_attachments.is_empty() {
-      true => None,
-      false => {
-        let mut media_ids: Vec<String> = Vec::new();
-        for attachment in &status.media_attachments {
-          let media = mastodon_api.get_media_attachment(&attachment.url).await?;
-          let media_id = match twitter_api
-            .upload_media(media, &attachment.description)
-            .await
-          {
-            Ok(id) => {
-              console_log!(
-                "Media upload completed: {url} -> {media_id}",
-                url = &attachment.url,
-                media_id = &id
-              );
-              id
-            }
-            Err(_) => {
-              console_error!("Media upload failed: {url}", url = &attachment.url);
-              continue;
-            }
-          };
-          media_ids.push(media_id);
-        }
+    let mut media_ids: Option<Vec<String>> = None;
+    if !status.media_attachments.is_empty() && status.spoiler_text.is_empty() {
+      let mut ids: Vec<String> = Vec::new();
 
-        match media_ids.is_empty() {
-          true => None,
-          false => Some(media_ids),
+      for attachment in &status.media_attachments {
+        // If content type is "video", skip upload.
+        if attachment.r#type == "video" {
+          continue;
         }
+        let media = match mastodon_api.get_media_attachment(&attachment.url).await {
+          Ok(media) => media,
+          Err(error) => {
+            console_error!(
+              "Media upload failed: {url} ({error:#})",
+              url = &attachment.url,
+              error = &error
+            );
+            continue;
+          }
+        };
+        let media_id = match twitter_api
+          .upload_media(media, &attachment.description)
+          .await
+        {
+          Ok(id) => id,
+          Err(error) => {
+            console_error!(
+              "Media upload failed: {url} ({error:#})",
+              url = &attachment.url,
+              error = &error
+            );
+            continue;
+          }
+        };
+        console_log!(
+          "Media upload completed: {url} -> {media_id}",
+          url = &attachment.url,
+          media_id = &media_id
+        );
+        ids.push(media_id);
       }
-    };
+
+      media_ids = match ids.is_empty() {
+        true => None,
+        false => Some(ids),
+      };
+    }
 
     // Bulid tweet body.
     let body = twitter_api.build_body(status, &sync_status, media_ids.as_ref())?;

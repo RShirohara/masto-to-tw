@@ -59,20 +59,35 @@ impl Api {
     });
 
     // Build text.
-    let mut is_cw = false;
+    let mut cw_exists = false;
+    let mut add_status_url = false;
 
     if !mastodon_status.spoiler_text.is_empty() {
-      is_cw = true;
+      cw_exists = true;
+      add_status_url = true;
     }
 
-    let text = match is_cw {
+    if !mastodon_status.media_attachments.is_empty()
+      && mastodon_status.media_attachments.len() != media_ids.unwrap_or(&Vec::new()).len()
+    {
+      add_status_url = true
+    }
+
+    let text_body = match cw_exists {
       true => format!(
-        "CW: {spoiler_text}\n\n{url}",
-        spoiler_text = mastodon_status.spoiler_text,
-        url = mastodon_status.url
+        "CW: {spoiler_text}",
+        spoiler_text = mastodon_status.spoiler_text
       ),
       false => mastodon_status.text.to_owned(),
     };
+    let text = format!(
+      "{body}{url}",
+      body = text_body,
+      url = match add_status_url {
+        true => format!("\n\n{url}", url = mastodon_status.url),
+        false => "".to_string(),
+      }
+    );
 
     // Build body.
     let body = TweetBody {

@@ -76,6 +76,7 @@ pub struct Status {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MediaAttachment {
   pub description: Option<String>,
+  pub r#type: String,
   pub url: String,
 }
 
