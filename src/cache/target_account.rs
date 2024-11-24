@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use worker::{Context, Env};
+use worker::{Env, ScheduleContext};
 
 use crate::api::mastodon::Account;
 
@@ -15,7 +15,7 @@ pub async fn get_target_account(env: &Env) -> Result<Option<Account>, Box<dyn Er
 
 pub fn save_target_account(
   env: &Env,
-  ctx: &Context,
+  ctx: &ScheduleContext,
   account: &Account,
 ) -> Result<(), Box<dyn Error>> {
   let kv = env.kv(KV_BINDING_NAME)?;

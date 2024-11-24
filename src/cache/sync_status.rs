@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error};
 
-use worker::{Context, Env};
+use worker::{Env, ScheduleContext};
 
 use crate::api::mastodon::Status;
 
@@ -19,7 +19,7 @@ pub async fn get_sync_status(env: &Env) -> Result<HashMap<String, String>, Box<d
 
 pub fn save_sync_status(
   env: &Env,
-  ctx: &Context,
+  ctx: &ScheduleContext,
   status: &HashMap<String, String>,
 ) -> Result<(), Box<dyn Error>> {
   let kv = env.kv(KV_BINDING_NAME)?;

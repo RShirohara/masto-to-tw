@@ -5,33 +5,24 @@ use std::{collections::HashMap, error::Error};
 
 use api::mastodon::{Api as MastodonApi, Status as MastodonStatus};
 use api::twitter::Api as TwitterApi;
-use worker::{
-  console_error, console_log, event, Context, Env, Request, Response, Result as WorkerResult,
-  ScheduleContext, ScheduledEvent,
-};
-
-#[event(fetch)]
-pub async fn fetch(_req: Request, env: Env, ctx: Context) -> WorkerResult<Response> {
-  console_log!("Processing start.");
-
-  let result = match sync_posts(&env, &ctx).await {
-    Ok(statuses) => Response::from_json(&statuses),
-    Err(error) => {
-      console_error!("Error occurred: {error}", error = error.to_string());
-
-      Response::error(error.to_string(), 500)
-    }
-  };
-
-  console_log!("Processing finished.");
-
-  result
-}
+use worker::{console_error, console_log, event, Env, ScheduleContext, ScheduledEvent};
 
 #[event(scheduled)]
-pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {}
+pub async fn scheduled(_event: ScheduledEvent, env: Env, ctx: ScheduleContext) {
+  console_log!("Processing start.");
 
-async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>, Box<dyn Error>> {
+  let result = sync_posts(&env, &ctx).await;
+  if result.is_err() {
+    console_error!("Error occurred: {error:#}", error = result.unwrap_err());
+  }
+
+  console_log!("Processing finished.");
+}
+
+async fn sync_posts(
+  env: &Env,
+  ctx: &ScheduleContext,
+) -> Result<HashMap<String, String>, Box<dyn Error>> {
   let mastodon_api = MastodonApi::new(env)?;
 
   // Get target mastodon account.
@@ -120,17 +111,12 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
                 url = &attachment.url,
                 media_id = &id
               );
-
               id
-            },
+            }
             Err(_) => {
-              console_error!(
-                "Media upload failed: {url}",
-                url = &attachment.url
-              );
-
+              console_error!("Media upload failed: {url}", url = &attachment.url);
               continue;
-            },
+            }
           };
           media_ids.push(media_id);
         }
@@ -153,16 +139,14 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
           status_id = &status.id,
           tweet_id = &tweet_id
         );
-
         tweet_id
-      },
+      }
       Err(error) => {
         console_error!(
           "Sync failed: {status_id} ({error:#})",
           status_id = &status.id,
           error = error
         );
-
         "".to_string()
       }
     };
