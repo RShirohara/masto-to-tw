@@ -3,7 +3,8 @@ mod cache;
 
 use std::{collections::HashMap, error::Error};
 
-use api::mastodon::Api as MastodonApi;
+use api::mastodon::{Api as MastodonApi, Status as MastodonStatus};
+use api::twitter::Api as TwitterApi;
 use worker::{
   event, Context, Env, Request, Response, Result as WorkerResult, ScheduleContext, ScheduledEvent,
 };
@@ -51,6 +52,65 @@ async fn sync_posts(env: &Env, ctx: &Context) -> Result<HashMap<String, String>,
 
     return Ok(sync_status);
   }
+
+  // Get sync target.
+  let sync_target: Vec<&MastodonStatus> = mastodon_statuses
+    .iter()
+    .rev()
+    .filter(|status| !sync_status.contains_key(&status.id))
+    .filter(|status| {
+      status.in_reply_to_account_id.is_none()
+        || status
+          .in_reply_to_account_id
+          .to_owned()
+          .unwrap_or("".to_string())
+          == status.account.id
+    })
+    .collect();
+
+  // If sync target is empty, finish process.
+  if sync_target.is_empty() {
+    return Ok(sync_status);
+  }
+
+  // Post tweet.
+  let twitter_api = TwitterApi::new(env)?;
+  for status in sync_target {
+    // Upload media.
+    let media_ids = match status.media_attachments.is_empty() {
+      true => None,
+      false => {
+        let mut media_ids: Vec<String> = Vec::new();
+        for attachment in &status.media_attachments {
+          let media = mastodon_api.get_media_attachment(&attachment.url).await?;
+          let media_id = match twitter_api
+            .upload_media(media, &attachment.description)
+            .await
+          {
+            Ok(id) => id,
+            Err(_) => continue,
+          };
+          media_ids.push(media_id);
+        }
+
+        match media_ids.is_empty() {
+          true => None,
+          false => Some(media_ids),
+        }
+      }
+    };
+
+    // Bulid tweet body.
+    let body = twitter_api.build_body(status, &sync_status, media_ids.as_ref())?;
+
+    // Post.
+    let tweet_id = twitter_api.post_tweet(body).await.unwrap_or("".to_string());
+
+    sync_status.insert(status.id.to_owned(), tweet_id);
+  }
+
+  // Save sync status to kv.
+  let _ = cache::save_sync_status(env, ctx, &sync_status);
 
   Ok(sync_status)
 }
