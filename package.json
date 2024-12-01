@@ -2,7 +2,7 @@
   "name": "masto-to-tw",
   "description": "Sync Mastodon posts to Twitter.",
   "private": "true",
-  "packageManager": "pnpm@9.12.1",
+  "packageManager": "pnpm@9.14.4",
   "scripts": {
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
@@ -11,7 +11,7 @@
     "lint": "cargo clippy --release"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
-    "wrangler": "^3.91.0"
+    "esbuild": "0.24.0",
+    "wrangler": "3.91.0"
   }
 }

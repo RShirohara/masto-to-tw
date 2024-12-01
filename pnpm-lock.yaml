@@ -9,10 +9,10 @@ importers:
   .:
     devDependencies:
       esbuild:
-        specifier: ^0.24.0
+        specifier: 0.24.0
         version: 0.24.0
       wrangler:
-        specifier: ^3.91.0
+        specifier: 3.91.0
         version: 3.91.0
 
 packages:
