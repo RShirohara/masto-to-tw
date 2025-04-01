@@ -3,7 +3,8 @@ version: 2
 updates:
   # Cargo crates
   - package-ecosystem: "cargo"
-    directory: "/"
+    directories:
+      - "/"
     schedule:
       interval: "monthly"
       time: "03:00"
@@ -18,7 +19,8 @@ updates:
 
     # node.js modules
   - package-ecosystem: "npm"
-    directory: "/"
+    directories:
+      - "/"
     schedule:
       interval: "monthly"
       time: "03:00"
@@ -35,8 +37,7 @@ updates:
   # Terraform functions
   - package-ecosystem: "terraform"
     directories:
-      - "/terraform/kv"
-      - "/terraform/secrets"
+      - "/terraform/**/*"
     schedule:
       interval: "monthly"
       time: "03:00"
@@ -50,33 +51,9 @@ updates:
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-      time: "03:00"
-      timezone: "Asia/Tokyo"
-    labels:
-      - "Type: CI"
-      - "Type: Dependencies"
-    assignees:
-      - "RShirohara"
-    reviewers:
-      - "RShirohara"
-  - package-ecosystem: "github-actions"
-    directory: "/.github/actions/setup-pnpm"
-    schedule:
-      interval: "monthly"
-      time: "03:00"
-      timezone: "Asia/Tokyo"
-    labels:
-      - "Type: CI"
-      - "Type: Dependencies"
-    assignees:
-      - "RShirohara"
-    reviewers:
-      - "RShirohara"
-  - package-ecosystem: "github-actions"
-    directory: "/.github/actions/setup-rust"
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: "monthly"
       time: "03:00"
