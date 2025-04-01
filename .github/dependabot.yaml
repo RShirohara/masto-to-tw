@@ -62,3 +62,29 @@ updates:
       - "RShirohara"
     reviewers:
       - "RShirohara"
+  - package-ecosystem: "github-actions"
+    directory: "/.github/actions/setup-pnpm"
+    schedule:
+      interval: "monthly"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "Type: CI"
+      - "Type: Dependencies"
+    assignees:
+      - "RShirohara"
+    reviewers:
+      - "RShirohara"
+  - package-ecosystem: "github-actions"
+    directory: "/.github/actions/setup-rust"
+    schedule:
+      interval: "monthly"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "Type: CI"
+      - "Type: Dependencies"
+    assignees:
+      - "RShirohara"
+    reviewers:
+      - "RShirohara"
