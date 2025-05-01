@@ -11,7 +11,7 @@
     "lint": "cargo clippy --release"
   },
   "devDependencies": {
-    "esbuild": "0.25.2",
+    "esbuild": "0.25.3",
     "wrangler": "4.13.2"
   }
 }
