@@ -13,8 +13,6 @@ updates:
       - "Type: Dependencies"
     assignees:
       - "RShirohara"
-    reviewers:
-      - "RShirohara"
     open-pull-requests-limit: 10
 
     # node.js modules
@@ -28,8 +26,6 @@ updates:
     labels:
       - "Type: Dependencies"
     assignees:
-      - "RShirohara"
-    reviewers:
       - "RShirohara"
     versioning-strategy: increase
     open-pull-requests-limit: 10
@@ -46,8 +42,6 @@ updates:
       - "Type: Dependencies"
     assignees:
       - "RShirohara"
-    reviewers:
-      - "RShirohara"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -62,6 +56,4 @@ updates:
       - "Type: CI"
       - "Type: Dependencies"
     assignees:
-      - "RShirohara"
-    reviewers:
       - "RShirohara"
