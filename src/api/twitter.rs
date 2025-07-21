@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     error::Error,
-    io::{Cursor, Error as IoError, ErrorKind as IoErrorKind},
+    io::{Cursor, Error as IoError},
 };
 
 use futures::stream::TryStreamExt;
@@ -136,7 +136,7 @@ impl Api {
         // Append
         const MEDIA_SPLIT_SIZE: u64 = 1000000;
         let stream = mastodon_media.response.bytes_stream();
-        let mut reader = StreamReader::new(stream.map_err(|e| IoError::new(IoErrorKind::Other, e)));
+        let mut reader = StreamReader::new(stream.map_err(IoError::other));
         let mut segment_index = 0;
 
         while segment_index * MEDIA_SPLIT_SIZE < mastodon_media.content_size {
