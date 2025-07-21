@@ -13,5 +13,8 @@ binding = "cache"
 # Set created kv namespace id
 id = "cache"
 
+[observability]
+enabled = true
+
 [triggers]
 crons = ["*/2 * * * *"]
