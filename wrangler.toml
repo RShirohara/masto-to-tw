@@ -14,4 +14,4 @@ binding = "cache"
 id = "cache"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/2 * * * *"]
