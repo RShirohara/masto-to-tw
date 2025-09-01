@@ -13,7 +13,7 @@ futures = { version = "0.3.31", default-features = false }
 getrandom = { version = "0.2.16", features = ["js"] }
 reqwest = { version = "0.12.23", features = ["stream"] }
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
+serde_json = "1.0.143"
 tokio = { version = "1.47.1", default-features = false, features = ["io-util"] }
 tokio-util = { version = "0.7.16", default-features = false, features = ["io"] }
 twapi-v2 = { version = "0.14.2", features = ["oauth10a", "upload"] }
