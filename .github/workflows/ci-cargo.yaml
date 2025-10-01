@@ -6,6 +6,7 @@ on:
       - ready_for_review
       - review_requested
     paths:
+      - ".github/actions/**/*.yaml"
       - ".github/workflows/ci-cargo.yaml"
       - "**/*.rs"
       - "Cargo.toml"
