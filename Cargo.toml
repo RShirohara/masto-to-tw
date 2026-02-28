@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-futures = { version = "0.3.31", default-features = false }
+futures = { version = "0.3.32", default-features = false }
 getrandom = { version = "0.2.16", features = ["js"] }
 reqwest = { version = "0.13.1", features = ["query", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
